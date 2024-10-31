@@ -12,7 +12,7 @@ import React, {ComponentType, useCallback, useMemo, useState} from 'react'
 import {Dimensions, Platform, StyleSheet, View} from 'react-native'
 import {Gesture} from 'react-native-gesture-handler'
 import PagerView from 'react-native-pager-view'
-import {MeasuredDimensions} from 'react-native-reanimated'
+import {interpolate, MeasuredDimensions} from 'react-native-reanimated'
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -84,8 +84,42 @@ function ImageViewing({
     }
   })
 
-  // TODO: Apply transform
-  // const initialTransform = calculateOverlayTransform(SCREEN, thumbDims)
+  const initialTransform = calculateOverlayTransform(SCREEN, thumbDims)
+  const activeImageStyle = useAnimatedStyle(() => {
+    if (openProgress.value === 1) {
+      return {
+        transform: [{translateY: dismissSwipeTranslateY.value}],
+      }
+    }
+    if (!initialTransform) {
+      return {}
+    }
+    return {
+      transform: [
+        {
+          scale: interpolate(
+            openProgress.value,
+            [0, 1],
+            [initialTransform.scale, 1],
+          ),
+        },
+        {
+          translateX: interpolate(
+            openProgress.value,
+            [0, 1],
+            [initialTransform.translateX, 0],
+          ),
+        },
+        {
+          translateY: interpolate(
+            openProgress.value,
+            [0, 1],
+            [initialTransform.translateY, 0],
+          ),
+        },
+      ],
+    }
+  })
 
   const dismissSwipePan = Gesture.Pan()
     .enabled(!isScaled)
@@ -95,7 +129,6 @@ function ImageViewing({
     .onUpdate(e => {
       'worklet'
       dismissSwipeTranslateY.value = e.translationY
-      console.log(dismissSwipeTranslateY.value)
     })
     .onEnd(e => {
       'worklet'
@@ -131,7 +164,7 @@ function ImageViewing({
   const backdropStyle = useAnimatedStyle(() => {
     let opacity
     if (openProgress.value < 1) {
-      opacity = openProgress.value
+      opacity = Math.sqrt(openProgress.value)
     } else {
       opacity =
         1 -
@@ -141,11 +174,6 @@ function ImageViewing({
         )
     }
     return {opacity}
-  })
-  const activeImageStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{translateY: dismissSwipeTranslateY.value}],
-    }
   })
 
   if (!visible) {
@@ -281,7 +309,7 @@ const EnhancedImageViewing = (props: Props) => (
 
 function withClampedSpring(value: any) {
   'worklet'
-  return withSpring(value, {overshootClamping: true, stiffness: 300})
+  return withSpring(value, {overshootClamping: true, stiffness: 150})
 }
 
 export default EnhancedImageViewing

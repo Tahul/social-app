@@ -41,24 +41,29 @@ type Props = {
 
 function ImageViewing({
   images,
-  thumbDims: _thumbDims, // TODO: Pass down and use for animation.
+  thumbDims,
   initialImageIndex,
   visible,
   onRequestClose,
   HeaderComponent,
   FooterComponent,
 }: Props) {
+  const openProgress = useSharedValue(0)
+  React.useEffect(() => {
+    openProgress.value = withClampedSpring(1)
+  }, [openProgress])
+
   const [isScaled, setIsScaled] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [imageIndex, setImageIndex] = useState(initialImageIndex)
   const [showControls, setShowControls] = useState(true)
-
   const dismissSwipeTranslateY = useSharedValue(0)
+
   const animatedHeaderStyle = useAnimatedStyle(() => {
     const show = showControls && dismissSwipeTranslateY.value === 0
     return {
       pointerEvents: show ? 'auto' : 'none',
-      opacity: withClampedSpring(show ? 1 : 0),
+      opacity: withClampedSpring(show && openProgress.value > 0 ? 1 : 0),
       transform: [
         {
           translateY: withClampedSpring(show ? 0 : -30),
@@ -70,7 +75,7 @@ function ImageViewing({
     const show = showControls && dismissSwipeTranslateY.value === 0
     return {
       pointerEvents: show ? 'auto' : 'none',
-      opacity: withClampedSpring(show ? 1 : 0),
+      opacity: withClampedSpring(show && openProgress.value > 0 ? 1 : 0),
       transform: [
         {
           translateY: withClampedSpring(show ? 0 : 30),
@@ -78,6 +83,9 @@ function ImageViewing({
       ],
     }
   })
+
+  // TODO: Apply transform
+  // const initialTransform = calculateOverlayTransform(SCREEN, thumbDims)
 
   const dismissSwipePan = Gesture.Pan()
     .enabled(!isScaled)
@@ -121,13 +129,18 @@ function ImageViewing({
   }, [])
 
   const backdropStyle = useAnimatedStyle(() => {
-    const dismissProgress = Math.min(
-      Math.abs(dismissSwipeTranslateY.value) / (SCREEN.height / 2),
-      1,
-    )
-    return {
-      opacity: 1 - dismissProgress,
+    let opacity
+    if (openProgress.value < 1) {
+      opacity = openProgress.value
+    } else {
+      opacity =
+        1 -
+        Math.min(
+          Math.abs(dismissSwipeTranslateY.value) / (SCREEN.height / 2),
+          1,
+        )
     }
+    return {opacity}
   })
   const activeImageStyle = useAnimatedStyle(() => {
     return {
@@ -196,6 +209,33 @@ function ImageViewing({
       </View>
     </SafeAreaView>
   )
+}
+
+function calculateOverlayTransform(
+  screenSize: {width: number; height: number},
+  thumbnailPlacement:
+    | {
+        pageX: number
+        width: number
+        pageY: number
+        height: number
+      }
+    | null
+    | undefined,
+) {
+  if (!thumbnailPlacement) {
+    return null
+  }
+  const scale = thumbnailPlacement.width / screenSize.width
+  const screenCenterX = screenSize.width / 2
+  const screenCenterY = screenSize.height / 2
+  const thumbnailCenterX =
+    thumbnailPlacement.pageX + thumbnailPlacement.width / 2
+  const thumbnailCenterY =
+    thumbnailPlacement.pageY + thumbnailPlacement.height / 2
+  const translateX = (thumbnailCenterX - screenCenterX) / scale
+  const translateY = (thumbnailCenterY - screenCenterY) / scale
+  return {scale, translateX, translateY}
 }
 
 const styles = StyleSheet.create({

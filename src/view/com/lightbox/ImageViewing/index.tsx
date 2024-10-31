@@ -84,40 +84,24 @@ function ImageViewing({
     }
   })
 
-  const initialTransform = calculateOverlayTransform(SCREEN, thumbDims)
+  const initialTransform = calculateInitialTransform(SCREEN, thumbDims)
   const activeImageStyle = useAnimatedStyle(() => {
     if (openProgress.value === 1) {
       return {
         transform: [{translateY: dismissSwipeTranslateY.value}],
       }
     }
-    if (!initialTransform) {
-      return {}
+    if (initialTransform) {
+      const interpolatedTransform = interpolateTransform(
+        openProgress.value,
+        initialTransform,
+      )
+      return {
+        transform: interpolatedTransform,
+      }
     }
     return {
-      transform: [
-        {
-          scale: interpolate(
-            openProgress.value,
-            [0, 1],
-            [initialTransform.scale, 1],
-          ),
-        },
-        {
-          translateX: interpolate(
-            openProgress.value,
-            [0, 1],
-            [initialTransform.translateX, 0],
-          ),
-        },
-        {
-          translateY: interpolate(
-            openProgress.value,
-            [0, 1],
-            [initialTransform.translateY, 0],
-          ),
-        },
-      ],
+      transform: [],
     }
   })
 
@@ -239,7 +223,7 @@ function ImageViewing({
   )
 }
 
-function calculateOverlayTransform(
+function calculateInitialTransform(
   screenSize: {width: number; height: number},
   thumbnailPlacement:
     | {
@@ -264,6 +248,36 @@ function calculateOverlayTransform(
   const translateX = (thumbnailCenterX - screenCenterX) / scale
   const translateY = (thumbnailCenterY - screenCenterY) / scale
   return {scale, translateX, translateY}
+}
+
+function interpolateTransform(
+  progress: number,
+  initialTransform: {
+    translateX: number
+    translateY: number
+    scale: number
+  },
+) {
+  'worklet'
+  return [
+    {
+      scale: interpolate(progress, [0, 1], [initialTransform.scale, 1]),
+    },
+    {
+      translateX: interpolate(
+        progress,
+        [0, 1],
+        [initialTransform.translateX, 0],
+      ),
+    },
+    {
+      translateY: interpolate(
+        progress,
+        [0, 1],
+        [initialTransform.translateY, 0],
+      ),
+    },
+  ]
 }
 
 const styles = StyleSheet.create({
